@@ -3,7 +3,6 @@ package com.example.githubapi.controller;
 import com.example.githubapi.exceptions.UserNotFoundException;
 import com.example.githubapi.model.Repository;
 import com.example.githubapi.service.GitHubService;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,9 +26,9 @@ public class GitHubController {
     }
 
     @GetMapping("/user/{username}/repositories")
-    public Mono<ResponseEntity<?>> getUserRepositories(@PathVariable String username) {
+    public Mono<ResponseEntity<List<Repository>>> getUserRepositories(@PathVariable String username) {
         return gitHubService.getUserRepositories(username, 1, new ArrayList<>())
-                .<ResponseEntity<?>>map(repositories -> new ResponseEntity<>(repositories, HttpStatus.OK))
+                .map(repositories -> new ResponseEntity<>(repositories, HttpStatus.OK))
                 .onErrorResume(UserNotFoundException.class, e -> handleUserNotFoundException(e, username));
     }
 

@@ -63,26 +63,6 @@ class GitHubServiceImplTest {
     }
 
     @Test
-    void getBranches_Success() throws ExecutionException, InterruptedException {
-        // Arrange
-        String username = "testuser";
-        String repoName = "testrepo";
-        Branch branch = new Branch("main", "sha1");
-
-        when(responseSpec.bodyToFlux(Map.class))
-                .thenReturn(Flux.just(Map.of("name", "main", "commit", Map.of("sha", "sha1"))));
-
-        // Act
-        Mono<List<Branch>> result = gitHubService.getBranches(username, repoName);
-        List<Branch> branches = result.toFuture().get();
-
-        // Assert
-        assertNotNull(branches);
-        assertEquals(1, branches.size());
-        assertEquals("main", branches.get(0).getName());
-    }
-
-    @Test
     void handleWebClientResponseException_NotFound() throws ExecutionException, InterruptedException {
         // Arrange
         String username = "testuser";

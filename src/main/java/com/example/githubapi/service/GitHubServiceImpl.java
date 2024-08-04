@@ -12,6 +12,7 @@ import reactor.core.publisher.Mono;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -27,34 +28,32 @@ public class GitHubServiceImpl implements GitHubService {
 
     @Override
     public Mono<List<Repository>> getUserRepositories(String username, int page, List<Repository> result) {
-        return fetchPage(username, page)
+        String url = String.format(BASE_URL, username) + "?page=" + page;
+        System.out.println("Fetching URL: " + url);
+
+        return fetchPage(url)
                 .expand(repos -> {
+                    System.out.println("Fetched page: " + page + ", size: " + repos.size());
                     if (repos.isEmpty() || page >= MAX_PAGES) {
                         return Mono.empty();
                     }
-                    return fetchPage(username, page + 1);
+                    return fetchPage(String.format(BASE_URL, username) + "?page=" + (page + 1));
                 })
                 .flatMapIterable(repos -> repos)
                 .filter(repo -> !Boolean.TRUE.equals(repo.get("fork")))
                 .flatMap(repo -> {
-                    Repository repository = new Repository();
-                    repository.setName((String) repo.get("name"));
-                    repository.setOwnerLogin((String) ((Map) repo.get("owner")).get("login"));
+                    String name = (String) repo.get("name");
+                    String ownerLogin = (String) ((Map) repo.get("owner")).get("login");
 
-                    return getBranches(username, repository.getName())
-                            .map(branches -> {
-                                repository.setBranches(branches);
-                                result.add(repository);
-                                return repository;
-                            });
+                    return getBranches(username, name)
+                            .map(branches -> new Repository(name, ownerLogin, branches));
                 })
-                .collectList()
-                .thenReturn(result)
+                .collect(Collectors.toList())
                 .onErrorResume(WebClientResponseException.class, e -> handleWebClientResponseException(e, username));
     }
 
-    private Mono<List<Map>> fetchPage(String username, int page) {
-        String url = String.format(BASE_URL, username) + "?page=" + page;
+    private Mono<List<Map>> fetchPage(String url) {
+        System.out.println("Fetching URL: " + url);
 
         return webClient.get()
                 .uri(url)
@@ -67,6 +66,7 @@ public class GitHubServiceImpl implements GitHubService {
     @Override
     public Mono<List<Branch>> getBranches(String username, String repoName) {
         String url = String.format("https://api.github.com/repos/%s/%s/branches", username, repoName);
+        System.out.println("Fetching branches URL: " + url);
 
         return webClient.get()
                 .uri(url)
@@ -79,7 +79,7 @@ public class GitHubServiceImpl implements GitHubService {
                     String lastCommitSha = (String) commitMap.get("sha");
                     return new Branch(name, lastCommitSha);
                 })
-                .collectList();
+                .collect(Collectors.toList());
     }
 
     protected Mono<List<Repository>> handleWebClientResponseException(WebClientResponseException e, String username) {
